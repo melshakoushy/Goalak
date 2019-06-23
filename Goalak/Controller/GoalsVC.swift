@@ -26,7 +26,11 @@ class GoalsVC: UIViewController {
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        fetchCoreDataObjects()
         tableView.reloadData()
+    }
+    
+    func fetchCoreDataObjects() {
         self.fetch { (complete) in
             if complete {
                 if goals.count >= 1 {
@@ -35,7 +39,6 @@ class GoalsVC: UIViewController {
                     tableView.isHidden = true                }
             }
         }
-        tableView.reloadData()
     }
 
     @IBAction func addGoalPressed(_ sender: Any) {
@@ -59,9 +62,44 @@ extension GoalsVC: UITableViewDelegate, UITableViewDataSource {
         cell.configureCell(goal: goal)
         return cell
     }
+    func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
+        return true
+    }
+    func tableView(_ tableView: UITableView, editingStyleForRowAt indexPath: IndexPath) -> UITableViewCell.EditingStyle {
+        return .none
+    }
+    func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath) -> [UITableViewRowAction]? {
+        let deleteAction = UITableViewRowAction(style: .destructive, title: "DELETE") { (rowAction, indexPath) in
+            self.removeGoal(indexPath: indexPath)
+            self.fetchCoreDataObjects()
+            tableView.deleteRows(at: [indexPath], with: .automatic)
+        }
+        let addAction = UITableViewRowAction(style: .normal, title: "ADD 1") { (rowAction, indexPath) in
+            self.setProgress(indexPath: indexPath)
+            tableView.reloadRows(at: [indexPath], with: .automatic)
+        }
+        deleteAction.backgroundColor = #colorLiteral(red: 1, green: 0.1491314173, blue: 0, alpha: 1)
+        addAction.backgroundColor = #colorLiteral(red: 0.9529411793, green: 0.6862745285, blue: 0.1333333403, alpha: 1)
+        return [deleteAction, addAction]
+    }
 }
 
 extension GoalsVC {
+    func setProgress(indexPath: IndexPath){
+        guard let managedContext = appDelegate?.persistentContainer.viewContext else { return }
+        let chosenGoal = goals[indexPath.row]
+        if chosenGoal.goalProgressValue < chosenGoal.goalCompletionValue {
+            chosenGoal.goalProgressValue = chosenGoal.goalProgressValue + 1
+        } else {
+            return
+        }
+        do {
+            try managedContext.save()
+        } catch {
+            debugPrint(error.localizedDescription)
+        }
+    }
+    
     func removeGoal(indexPath: IndexPath) {
         guard let managedContext = appDelegate?.persistentContainer.viewContext else { return }
         managedContext.delete(goals[indexPath.row])
